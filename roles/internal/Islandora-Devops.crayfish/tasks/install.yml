@@ -57,20 +57,23 @@
   become_user: "{{ crayfish_user }}"
   become: true
 
-- name: "Get symfony/flex version"
+- name: "Get packages installed for Houdini"
   composer:
     command: show
     working_dir: "{{ crayfish_install_dir }}/Houdini"
-    arguments: symfony/flex
-  changed_when: true
-  register: flex_package_info
-  ignore_errors: true
-  
+    arguments: --format=json
+  register: crayfish_houdini_packages_installed_result
+  become_user: "{{ crayfish_user }}"
+
+- name: "Parse results of packages installed for Houdini"
+  set_fact:
+    crayfish_houdini_packages: "{{ crayfish_houdini_packages_installed_result.stdout | from_json }}"
+
 - name: "Delete Houdini vendor folder to update symfony/flex"
   file:
     state: absent
     path: "{{ crayfish_install_dir }}/Houdini/vendor"
-  when: "'versions : * v1.13.3' in flex_package_info.stdout"
+  when: "{{ crayfish_houdini_packages.installed | json_query('*[?name=`symfony/flex` and ?version=`v1.13.3`') | length | bool }}"
 
 - name: Build crayfish code including dependencies
   composer:
